@@ -7,15 +7,13 @@ import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 export default defineConfig(({ mode }) => {
   const isProd = mode === "production";
-
-  // ✅ liga manualmente no dev se quiser
   const enableManus = process.env.VITE_ENABLE_MANUS === "true";
 
   const plugins = [
     react(),
     tailwindcss(),
     jsxLocPlugin(),
-    (isProd || enableManus) ? vitePluginManusRuntime() : undefined,
+    isProd || enableManus ? vitePluginManusRuntime() : undefined,
   ].filter(Boolean);
 
   return {
@@ -27,13 +25,19 @@ export default defineConfig(({ mode }) => {
         "@assets": path.resolve(import.meta.dirname, "attached_assets"),
       },
     },
+
     envDir: path.resolve(import.meta.dirname),
+
+    // ✅ client como root
     root: path.resolve(import.meta.dirname, "client"),
     publicDir: path.resolve(import.meta.dirname, "client", "public"),
+
+    // ✅ build padrão: gera em client/dist
     build: {
-      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      outDir: "dist",
       emptyOutDir: true,
     },
+
     server: {
       host: true,
       allowedHosts: [
@@ -49,6 +53,8 @@ export default defineConfig(({ mode }) => {
         strict: true,
         deny: ["**/.*"],
       },
+
+      // ✅ dev: /api vai pro backend local
       proxy: {
         "/api": "http://localhost:3000",
       },
