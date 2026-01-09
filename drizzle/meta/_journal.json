@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1767730772236,
+      "tag": "0000_steep_blockbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1767731997072,
+      "tag": "0001_mushy_firebrand",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1767830368839,
+      "tag": "0002_next_lucky_pierre",
+      "breakpoints": true
+    }
+  ]
+}
