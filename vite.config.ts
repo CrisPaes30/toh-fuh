@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
   const isProd = mode === "production";
@@ -13,6 +14,41 @@ export default defineConfig(({ mode }) => {
     react(),
     tailwindcss(),
     jsxLocPlugin(),
+
+    // ✅ PWA (Instalável no celular)
+    VitePWA({
+      registerType: "autoUpdate",
+      devOptions: {
+        enabled: true, // ✅ permite testar PWA no dev (vite dev)
+      },
+      includeAssets: [
+        "favicon.ico",
+        "apple-touch-icon.png",
+        "robots.txt",
+      ],
+      manifest: {
+        name: "To Fuhh",
+        short_name: "ToFuhh",
+        description: "Seu gerenciador financeiro pessoal",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#2563eb",
+        icons: [
+          { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "/pwa-512-maskable.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+    }),
+
+    // ✅ manus runtime só em produção (ou quando você ligar manualmente)
     isProd || enableManus ? vitePluginManusRuntime() : undefined,
   ].filter(Boolean);
 
@@ -25,14 +61,11 @@ export default defineConfig(({ mode }) => {
         "@assets": path.resolve(import.meta.dirname, "attached_assets"),
       },
     },
-
     envDir: path.resolve(import.meta.dirname),
 
-    // ✅ client como root
     root: path.resolve(import.meta.dirname, "client"),
     publicDir: path.resolve(import.meta.dirname, "client", "public"),
 
-    // ✅ build padrão: gera em client/dist
     build: {
       outDir: "dist",
       emptyOutDir: true,
@@ -53,8 +86,6 @@ export default defineConfig(({ mode }) => {
         strict: true,
         deny: ["**/.*"],
       },
-
-      // ✅ dev: /api vai pro backend local
       proxy: {
         "/api": "http://localhost:3000",
       },
