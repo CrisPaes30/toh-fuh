@@ -7,6 +7,12 @@ import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
+import { registerSW } from "virtual:pwa-register";
+
+if (typeof window !== "undefined") {
+  registerSW({ immediate: true });
+}
+
 
 const queryClient = new QueryClient();
 
