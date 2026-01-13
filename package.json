@@ -4,8 +4,13 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development tsx watch server/_core/index.ts",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "dev": "concurrently -n client,server \"pnpm dev:client\" \"pnpm dev:server\"",
+    "dev:client": "vite --config vite.config.ts --port 5173",
+    "dev:server": "cross-env NODE_ENV=development tsx watch server/_core/index.ts",
+
+    "build:client": "vite build --config vite.config.ts",
+    "build": "pnpm build:client",
+
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
