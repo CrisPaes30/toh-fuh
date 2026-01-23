@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
     // ✅ PWA (Instalável no celular)
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: "auto",
       devOptions: {
         enabled: true, // ✅ permite testar PWA no dev (vite dev)
       },
