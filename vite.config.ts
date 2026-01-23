@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
     // ✅ PWA (Instalável no celular)
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: "auto",
       devOptions: {
         enabled: true, // ✅ permite testar PWA no dev (vite dev)
       },
@@ -36,15 +37,25 @@ export default defineConfig(({ mode }) => {
         background_color: "#ffffff",
         theme_color: "#2563eb",
         icons: [
-          { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/pwa-512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "/pwa-192.png",
+            sizes: "1024x1024",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/pwa-512.png",
+            sizes: "1024x1024",
+            type: "image/png",
+            purpose: "any",
+          },
           {
             src: "/pwa-512-maskable.png",
-            sizes: "512x512",
+            sizes: "1024x1024",
             type: "image/png",
             purpose: "maskable",
           },
-        ],
+        ],        
       },
     }),
 
