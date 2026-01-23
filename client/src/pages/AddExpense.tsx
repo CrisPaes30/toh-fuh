@@ -1,20 +1,53 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { trpc } from "@/lib/trpc";
-import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { Loader2, Minus } from "lucide-react";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+
+// Firestore
+import { db } from "@/lib/firebase";
+import {
+  addDoc,
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
+
+type Category = {
+  id: string;
+  name: string;
+  type: "income" | "expense";
+};
 
 export default function AddExpense() {
-  const { user } = useAuth();
+  const { user } = useFirebaseAuth();
   const [, setLocation] = useLocation();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
   const [formData, setFormData] = useState({
     categoryId: "",
     amount: "",
@@ -22,42 +55,96 @@ export default function AddExpense() {
     date: new Date().toISOString().split("T")[0],
   });
 
-  const { data: categories } = trpc.categories.list.useQuery();
-  const expenseCategories = categories?.filter((c) => c.type === "expense") || [];
+  // 🔥 Carrega categorias do Firestore: users/{uid}/categories
+  useEffect(() => {
+    if (!user?.uid) {
+      setCategories([]);
+      setCategoriesLoading(false);
+      return;
+    }
 
-  const createTransaction = trpc.transactions.create.useMutation({
-    onSuccess: () => {
-      toast.success("Gasto registrado com sucesso!");
-      setFormData({
-        categoryId: "",
-        amount: "",
-        description: "",
-        date: new Date().toISOString().split("T")[0],
-      });
-      setTimeout(() => setLocation("/"), 1500);
-    },
-    onError: (error) => {
-      toast.error(`Erro: ${error.message}`);
-    },
-  });
+    setCategoriesLoading(true);
+
+    const ref = collection(db, "users", user.uid, "categories");
+    const q = query(ref, orderBy("name"));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list: Category[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            name: data.name ?? "",
+            type: (data.type ?? "expense") as "income" | "expense",
+          };
+        });
+
+        setCategories(list);
+        setCategoriesLoading(false);
+      },
+      (err) => {
+        console.error(err);
+        setCategories([]);
+        setCategoriesLoading(false);
+        toast.error("Erro ao carregar categorias.");
+      }
+    );
+
+    return () => unsub();
+  }, [user?.uid]);
+
+  const expenseCategories = useMemo(
+    () => categories.filter((c) => c.type === "expense"),
+    [categories]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user?.uid) {
+      toast.error("Usuário não autenticado.");
+      return;
+    }
 
     if (!formData.categoryId || !formData.amount) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
 
+    const amountNumber = Number(formData.amount);
+    if (Number.isNaN(amountNumber) || amountNumber <= 0) {
+      toast.error("Informe um valor válido.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await createTransaction.mutateAsync({
-        categoryId: parseInt(formData.categoryId),
+      // 🔥 Salva transação no Firestore: users/{uid}/transactions
+      const ref = collection(db, "users", user.uid, "transactions");
+
+      await addDoc(ref, {
         type: "expense",
-        amount: Math.round(parseFloat(formData.amount) * 100),
-        description: formData.description,
-        date: new Date(formData.date),
+        categoryId: formData.categoryId, // docId (string)
+        amount: Math.round(amountNumber * 100), // centavos
+        description: formData.description ?? "",
+        date: Timestamp.fromDate(new Date(formData.date)),
+        createdAt: serverTimestamp(),
       });
+
+      toast.success("Gasto registrado com sucesso!");
+
+      setFormData({
+        categoryId: "",
+        amount: "",
+        description: "",
+        date: new Date().toISOString().split("T")[0],
+      });
+
+      setTimeout(() => setLocation("/"), 800);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar o gasto.");
     } finally {
       setIsSubmitting(false);
     }
@@ -75,11 +162,13 @@ export default function AddExpense() {
             Adicione uma nova despesa (compras, contas, etc.)
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria *</Label>
+
                 <Select
                   value={formData.categoryId}
                   onValueChange={(value) =>
@@ -89,15 +178,20 @@ export default function AddExpense() {
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
+
                   <SelectContent>
-                    {expenseCategories.length > 0 ? (
+                    {categoriesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        Carregando categorias...
+                      </SelectItem>
+                    ) : expenseCategories.length > 0 ? (
                       expenseCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id.toString()}>
+                        <SelectItem key={cat.id} value={cat.id}>
                           {cat.name}
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="default" disabled>
+                      <SelectItem value="empty" disabled>
                         Nenhuma categoria disponível
                       </SelectItem>
                     )}
@@ -148,7 +242,7 @@ export default function AddExpense() {
             <div className="flex gap-3">
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !user?.uid}
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
                 {isSubmitting ? (
@@ -163,6 +257,7 @@ export default function AddExpense() {
                   </>
                 )}
               </Button>
+
               <Button
                 type="button"
                 variant="outline"
