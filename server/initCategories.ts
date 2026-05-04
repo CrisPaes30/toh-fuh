@@ -1,4 +1,4 @@
-import { createCategory, getUserCategories } from "./db";
+import { createCategory, getUserCategories } from "./firestore-db";
 
 const DEFAULT_INCOME_CATEGORIES = [
   { name: "Salário", color: "#10b981", icon: "briefcase" },
@@ -20,7 +20,7 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Outros", color: "#ef4444", icon: "minus-circle" },
 ];
 
-export async function initializeDefaultCategories(userId: number) {
+export async function initializeDefaultCategories(userId: string) {
   try {
     const existingCategories = await getUserCategories(userId);
 

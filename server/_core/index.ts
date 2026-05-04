@@ -1,4 +1,16 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+// Load .env.local first (takes priority), then .env as fallback
+loadEnv({ path: ".env.local" });
+loadEnv();
+
+// Prevent unhandled async errors (e.g. gRPC Firebase retries) from crashing the server
+process.on("unhandledRejection", (reason) => {
+  console.error("[Server] Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[Server] Uncaught exception:", err);
+});
+
 import express from "express";
 import { createServer } from "http";
 import net from "net";

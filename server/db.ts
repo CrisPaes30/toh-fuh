@@ -107,6 +107,14 @@ export async function createCategory(data: InsertCategory) {
   return result;
 }
 
+export async function deleteCategory(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db
+    .delete(categories)
+    .where(and(eq(categories.id, id), eq(categories.userId, userId)));
+}
+
 // ===== TRANSACTIONS =====
 export async function getUserTransactions(userId: number, limit?: number) {
   const db = await getDb();

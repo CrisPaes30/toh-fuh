@@ -139,12 +139,19 @@ export async function createTransaction(
   const db = getFirestore();
   if (!db) throw new Error("Firestore não inicializado");
 
-  const docRef = await db.collection("transactions").add({
-    ...transaction,
+  const txData: Record<string, unknown> = {
+    userId: transaction.userId,
+    categoryId: transaction.categoryId,
+    amount: transaction.amount,
+    type: transaction.type,
     date: Timestamp.fromDate(transaction.date),
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
-  });
+  };
+  if (transaction.description !== undefined) {
+    txData.description = transaction.description;
+  }
+  const docRef = await db.collection("transactions").add(txData);
 
   return {
     id: docRef.id,
@@ -154,27 +161,39 @@ export async function createTransaction(
   };
 }
 
+export async function deleteTransaction(transactionId: string): Promise<void> {
+  const db = getFirestore();
+  if (!db) throw new Error("Firestore não inicializado");
+  await db.collection("transactions").doc(transactionId).delete();
+}
+
 export async function getUserTransactions(
   userId: string,
   limit: number = 100
 ): Promise<Transaction[]> {
   const db = getFirestore();
-  if (!db) throw new Error("Firestore não inicializado");
+  if (!db) return [];
 
-  const snapshot = await db
-    .collection("transactions")
-    .where("userId", "==", userId)
-    .orderBy("date", "desc")
-    .limit(limit)
-    .get();
+  try {
+    const snapshot = await db
+      .collection("transactions")
+      .where("userId", "==", userId)
+      .get();
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    date: doc.data().date?.toDate() || new Date(),
-    createdAt: doc.data().createdAt?.toDate() || new Date(),
-    updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-  })) as Transaction[];
+    return snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate() || new Date(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      }) as Transaction)
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, limit);
+  } catch (err) {
+    console.error("[Firestore] getUserTransactions:", String(err));
+    return [];
+  }
 }
 
 export async function getTransactionsByDateRange(
@@ -183,23 +202,34 @@ export async function getTransactionsByDateRange(
   endDate: Date
 ): Promise<Transaction[]> {
   const db = getFirestore();
-  if (!db) throw new Error("Firestore não inicializado");
+  if (!db) return [];
 
-  const snapshot = await db
-    .collection("transactions")
-    .where("userId", "==", userId)
-    .where("date", ">=", Timestamp.fromDate(startDate))
-    .where("date", "<=", Timestamp.fromDate(endDate))
-    .orderBy("date", "desc")
-    .get();
+  try {
+    const start = startDate.getTime();
+    const end = endDate.getTime();
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    date: doc.data().date?.toDate() || new Date(),
-    createdAt: doc.data().createdAt?.toDate() || new Date(),
-    updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-  })) as Transaction[];
+    const snapshot = await db
+      .collection("transactions")
+      .where("userId", "==", userId)
+      .get();
+
+    return snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      }) as Transaction)
+      .filter((t) => {
+        const ts = t.date.getTime();
+        return ts >= start && ts <= end;
+      })
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  } catch (err) {
+    console.error("[Firestore] getTransactionsByDateRange:", String(err));
+    return [];
+  }
 }
 
 // Funções de categorias
@@ -207,38 +237,65 @@ export async function createCategory(
   category: Omit<Category, "id" | "createdAt" | "updatedAt">
 ): Promise<Category> {
   const db = getFirestore();
+  if (!db) throw new Error("Firebase não inicializado. Verifique FIREBASE_SERVICE_ACCOUNT_JSON.");
+
+  try {
+    const data: Record<string, unknown> = {
+      userId: category.userId,
+      name: category.name,
+      type: category.type,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+    if (category.color !== undefined) {
+      data.color = category.color;
+    }
+    const docRef = await db.collection("categories").add(data);
+
+    return {
+      id: docRef.id,
+      ...category,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  } catch (err) {
+    console.error("[Firestore] createCategory:", String(err));
+    throw new Error(`Erro ao criar categoria: ${String(err)}`);
+  }
+}
+
+export async function deleteCategory(categoryId: string, userId: string): Promise<void> {
+  const db = getFirestore();
   if (!db) throw new Error("Firestore não inicializado");
-
-  const docRef = await db.collection("categories").add({
-    ...category,
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
-  });
-
-  return {
-    id: docRef.id,
-    ...category,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  const docRef = db.collection("categories").doc(categoryId);
+  const doc = await docRef.get();
+  if (doc.exists && doc.data()?.userId === userId) {
+    await docRef.delete();
+  }
 }
 
 export async function getUserCategories(userId: string): Promise<Category[]> {
   const db = getFirestore();
-  if (!db) throw new Error("Firestore não inicializado");
+  if (!db) return [];
 
-  const snapshot = await db
-    .collection("categories")
-    .where("userId", "==", userId)
-    .orderBy("name")
-    .get();
+  try {
+    const snapshot = await db
+      .collection("categories")
+      .where("userId", "==", userId)
+      .get();
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt?.toDate() || new Date(),
-    updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-  })) as Category[];
+    return snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      }) as Category)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch (err) {
+    console.error("[Firestore] getUserCategories:", String(err));
+    return [];
+  }
 }
 
 // Funções de resumo mensal
@@ -248,56 +305,60 @@ export async function calculateMonthlyBalance(
   month: number
 ): Promise<{ income: number; expense: number; balance: number }> {
   const db = getFirestore();
-  if (!db) throw new Error("Firestore não inicializado");
+  if (!db) return { income: 0, expense: 0, balance: 0 };
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59);
+  try {
+    const startDate = new Date(year, month - 1, 1).getTime();
+    const endDate = new Date(year, month, 0, 23, 59, 59).getTime();
 
-  const snapshot = await db
-    .collection("transactions")
-    .where("userId", "==", userId)
-    .where("date", ">=", Timestamp.fromDate(startDate))
-    .where("date", "<=", Timestamp.fromDate(endDate))
-    .get();
+    const snapshot = await db
+      .collection("transactions")
+      .where("userId", "==", userId)
+      .get();
 
-  let income = 0;
-  let expense = 0;
+    let income = 0;
+    let expense = 0;
 
-  snapshot.docs.forEach((doc) => {
-    const transaction = doc.data() as Transaction;
-    if (transaction.type === "income") {
-      income += transaction.amount;
-    } else {
-      expense += transaction.amount;
-    }
-  });
+    snapshot.docs.forEach((doc) => {
+      const t = doc.data();
+      const date: Date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+      const ts = date.getTime();
+      if (ts < startDate || ts > endDate) return;
+      if (t.type === "income") income += t.amount;
+      else expense += t.amount;
+    });
 
-  return {
-    income,
-    expense,
-    balance: income - expense,
-  };
+    return { income, expense, balance: income - expense };
+  } catch (err) {
+    console.error("[Firestore] calculateMonthlyBalance:", String(err));
+    return { income: 0, expense: 0, balance: 0 };
+  }
 }
 
 export async function getUserMonthlySummaries(
   userId: string
 ): Promise<MonthlySummary[]> {
   const db = getFirestore();
-  if (!db) throw new Error("Firestore não inicializado");
+  if (!db) return [];
 
-  const snapshot = await db
-    .collection("monthlySummaries")
-    .where("userId", "==", userId)
-    .orderBy("year", "desc")
-    .orderBy("month", "desc")
-    .get();
+  try {
+    const snapshot = await db
+      .collection("monthlySummaries")
+      .where("userId", "==", userId)
+      .get();
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt?.toDate() || new Date(),
-    updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-  })) as MonthlySummary[];
+    return snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      }) as MonthlySummary)
+      .sort((a, b) => b.year !== a.year ? b.year - a.year : b.month - a.month);
+  } catch (err) {
+    console.error("[Firestore] getUserMonthlySummaries:", String(err));
+    return [];
+  }
 }
 
 export async function getExpensesByCategory(
@@ -306,33 +367,33 @@ export async function getExpensesByCategory(
   month: number
 ): Promise<Array<{ categoryId: string; amount: number }>> {
   const db = getFirestore();
-  if (!db) throw new Error("Firestore não inicializado");
+  if (!db) return [];
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59);
+  try {
+    const startDate = new Date(year, month - 1, 1).getTime();
+    const endDate = new Date(year, month, 0, 23, 59, 59).getTime();
 
-  const snapshot = await db
-    .collection("transactions")
-    .where("userId", "==", userId)
-    .where("type", "==", "expense")
-    .where("date", ">=", Timestamp.fromDate(startDate))
-    .where("date", "<=", Timestamp.fromDate(endDate))
-    .get();
+    const snapshot = await db
+      .collection("transactions")
+      .where("userId", "==", userId)
+      .get();
 
-  const expenses: { [key: string]: number } = {};
+    const expenses: { [key: string]: number } = {};
 
-  snapshot.docs.forEach((doc) => {
-    const transaction = doc.data() as Transaction;
-    if (!expenses[transaction.categoryId]) {
-      expenses[transaction.categoryId] = 0;
-    }
-    expenses[transaction.categoryId] += transaction.amount;
-  });
+    snapshot.docs.forEach((doc) => {
+      const t = doc.data();
+      if (t.type !== "expense") return;
+      const date: Date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+      const ts = date.getTime();
+      if (ts < startDate || ts > endDate) return;
+      expenses[t.categoryId] = (expenses[t.categoryId] || 0) + t.amount;
+    });
 
-  return Object.entries(expenses).map(([categoryId, amount]) => ({
-    categoryId,
-    amount,
-  }));
+    return Object.entries(expenses).map(([categoryId, amount]) => ({ categoryId, amount }));
+  } catch (err) {
+    console.error("[Firestore] getExpensesByCategory:", String(err));
+    return [];
+  }
 }
 
 // Funções de metas financeiras
