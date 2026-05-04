@@ -1,22 +1,36 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
-import type { User } from "../../drizzle/schema";
-import { sdk } from "./sdk";
+import { getFirebaseAuth } from "../firebase";
+
+export type TrpcUser = {
+  openId: string;
+  name: string;
+};
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
-  user: User | null;
+  user: TrpcUser | null;
 };
 
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
-  let user: User | null = null;
+  let user: TrpcUser | null = null;
 
   try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
+    const authHeader = opts.req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      const idToken = authHeader.slice(7);
+      const firebaseAuth = getFirebaseAuth();
+      if (firebaseAuth) {
+        const decoded = await firebaseAuth.verifyIdToken(idToken);
+        user = {
+          openId: decoded.uid,
+          name: decoded.name ?? decoded.email ?? "",
+        };
+      }
+    }
+  } catch {
     user = null;
   }
 

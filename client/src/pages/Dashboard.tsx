@@ -1,52 +1,50 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingDown, TrendingUp, Wallet, AlertCircle, Lightbulb } from "lucide-react";
-import { trpc } from "@/lib/trpc";
+import { Loader2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useInitializeCategories } from "@/hooks/useInitializeCategories";
+import { getUserTransactions, calculateMonthlyBalance, getUserMonthlySummaries } from "@/lib/db";
 
 export default function Dashboard() {
-  const { user } = useAuth();
   useInitializeCategories();
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
-  const { data: recentTransactions, isLoading: transLoading } = trpc.transactions.recent.useQuery();
-  const { data: monthlyBalance } = trpc.analytics.monthlyBalance.useQuery({
-    year: currentYear,
-    month: currentMonth,
-  });
-  const { data: summaries } = trpc.analytics.monthlySummaries.useQuery();
-  const { data: suggestions } = trpc.analytics.suggestions.useQuery({
-    year: currentYear,
-    month: currentMonth,
+  const { data: recentTransactions, isLoading: transLoading } = useQuery({
+    queryKey: ["transactions", "recent"],
+    queryFn: () => getUserTransactions(5),
   });
 
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(cents / 100);
-  };
+  const { data: monthlyBalance } = useQuery({
+    queryKey: ["analytics", "monthlyBalance", currentYear, currentMonth],
+    queryFn: () => calculateMonthlyBalance(currentYear, currentMonth),
+  });
 
-  const chartData = summaries
-    ?.slice(-12)
-    .map((s) => ({
-      month: format(new Date(s.year, s.month - 1), "MMM", { locale: ptBR }),
-      income: s.totalIncome / 100,
-      expense: s.totalExpense / 100,
-      balance: s.balance / 100,
-    })) || [];
+  const { data: summaries } = useQuery({
+    queryKey: ["analytics", "monthlySummaries"],
+    queryFn: getUserMonthlySummaries,
+  });
 
-  const isNegativeBalance = monthlyBalance && monthlyBalance.balance < 0;
+  const formatCurrency = (cents: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+  const chartData =
+    summaries
+      ?.slice(-12)
+      .reverse()
+      .map((s) => ({
+        month: format(new Date(s.year, s.month - 1), "MMM", { locale: ptBR }),
+        income: s.totalIncome / 100,
+        expense: s.totalExpense / 100,
+        balance: s.balance / 100,
+      })) || [];
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Saldo Atual */}
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Saldo Atual</CardTitle>
@@ -66,7 +64,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Entradas */}
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Entradas</CardTitle>
@@ -84,7 +81,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Saídas */}
         <Card className="border-l-4 border-l-red-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Saídas</CardTitle>
@@ -103,7 +99,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Mini Gráfico */}
       <Card>
         <CardHeader>
           <CardTitle>Resumo dos Últimos 12 Meses</CardTitle>
@@ -116,7 +111,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value) => `R$ ${typeof value === 'number' ? value.toFixed(2) : value}`} />
+                <Tooltip formatter={(value) => `R$ ${typeof value === "number" ? value.toFixed(2) : value}`} />
                 <Line type="monotone" dataKey="income" stroke="#10b981" name="Entradas" />
                 <Line type="monotone" dataKey="expense" stroke="#ef4444" name="Saídas" />
               </LineChart>
@@ -129,7 +124,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Últimas Transações */}
       <Card>
         <CardHeader>
           <CardTitle>Últimas Transações</CardTitle>
@@ -150,11 +144,7 @@ export default function Dashboard() {
                       {format(new Date(tx.date), "dd MMM yyyy", { locale: ptBR })}
                     </p>
                   </div>
-                  <p
-                    className={`text-lg font-semibold ${
-                      tx.type === "income" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
+                  <p className={`text-lg font-semibold ${tx.type === "income" ? "text-green-600" : "text-red-600"}`}>
                     {tx.type === "income" ? "+" : "-"}
                     {formatCurrency(tx.amount)}
                   </p>
@@ -166,46 +156,6 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
-
-      {/* Sugestões Inteligentes */}
-      {suggestions && suggestions.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900">Sugestões Inteligentes</h2>
-          {suggestions.map((suggestion, idx) => {
-            const bgColor =
-              suggestion.type === "warning"
-                ? "bg-red-50 border-red-200"
-                : suggestion.type === "opportunity"
-                ? "bg-green-50 border-green-200"
-                : "bg-blue-50 border-blue-200";
-
-            const iconColor =
-              suggestion.type === "warning"
-                ? "text-red-600"
-                : suggestion.type === "opportunity"
-                ? "text-green-600"
-                : "text-blue-600";
-
-            const Icon = suggestion.type === "warning" ? AlertCircle : Lightbulb;
-
-            return (
-              <Card key={idx} className={`border ${bgColor}`}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start gap-3">
-                    <Icon className={`h-5 w-5 mt-1 flex-shrink-0 ${iconColor}`} />
-                    <div>
-                      <CardTitle className="text-sm">{suggestion.title}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {suggestion.description}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

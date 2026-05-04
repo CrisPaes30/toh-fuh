@@ -5,10 +5,10 @@ import {
   calculateMonthlyBalance,
   getUserMonthlySummaries,
   getTransactionsByDateRange,
-} from "./db";
+} from "./firestore-db";
 
 export async function generateMonthlyReportPDF(
-  userId: number,
+  userId: string,
   year: number,
   month: number
 ): Promise<Buffer> {
@@ -169,7 +169,7 @@ export async function generateMonthlyReportPDF(
   });
 }
 
-export async function generateAnnualReportPDF(userId: number, year: number): Promise<Buffer> {
+export async function generateAnnualReportPDF(userId: string, year: number): Promise<Buffer> {
   const doc = new PDFDocument({
     size: "A4",
     margin: 40,

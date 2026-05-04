@@ -1,4 +1,4 @@
-import { getExpensesByCategory, getUserTransactions, getTransactionsByDateRange } from "./db";
+import { getExpensesByCategory } from "./firestore-db";
 
 export interface Suggestion {
   type: "warning" | "opportunity" | "advice";
@@ -11,7 +11,7 @@ export interface Suggestion {
  * Analyzes monthly balance and generates behavioral suggestions
  */
 export async function generateBehavioralSuggestions(
-  userId: number,
+  userId: string,
   year: number,
   month: number,
   balance: number
@@ -81,7 +81,7 @@ export async function generateBehavioralSuggestions(
  * Analyzes monthly surplus and generates investment suggestions
  */
 export async function generateInvestmentSuggestions(
-  userId: number,
+  userId: string,
   year: number,
   month: number,
   balance: number
@@ -123,7 +123,7 @@ export async function generateInvestmentSuggestions(
  * Generates all suggestions for a given month
  */
 export async function generateAllSuggestions(
-  userId: number,
+  userId: string,
   year: number,
   month: number,
   balance: number
