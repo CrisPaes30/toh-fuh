@@ -6,9 +6,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useInitializeCategories } from "@/hooks/useInitializeCategories";
 import { getUserTransactions, calculateMonthlyBalance, getUserMonthlySummaries } from "@/lib/db";
+import { useLocation } from "wouter";
 
 export default function Dashboard() {
   useInitializeCategories();
+  const [, setLocation] = useLocation();
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -45,7 +47,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card
+          className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setLocation("/transactions/all")}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Saldo Atual</CardTitle>
           </CardHeader>
@@ -64,7 +69,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card
+          className="border-l-4 border-l-green-500 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setLocation("/transactions/income")}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Entradas</CardTitle>
           </CardHeader>
@@ -74,14 +82,17 @@ export default function Dashboard() {
                 <p className="text-3xl font-bold text-green-600">
                   {formatCurrency(monthlyBalance?.income || 0)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Este mês</p>
+                <p className="text-xs text-gray-500 mt-1">Este mês · ver detalhes →</p>
               </div>
               <TrendingUp className="h-10 w-10 text-green-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card
+          className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setLocation("/transactions/expense")}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Saídas</CardTitle>
           </CardHeader>
@@ -91,7 +102,7 @@ export default function Dashboard() {
                 <p className="text-3xl font-bold text-red-600">
                   {formatCurrency(monthlyBalance?.expense || 0)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Este mês</p>
+                <p className="text-xs text-gray-500 mt-1">Este mês · ver detalhes →</p>
               </div>
               <TrendingDown className="h-10 w-10 text-red-500 opacity-20" />
             </div>

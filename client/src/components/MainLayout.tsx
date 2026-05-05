@@ -12,6 +12,7 @@ import {
   AlertCircle,
   FileText,
   Tags,
+  List,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
@@ -128,6 +129,13 @@ export function MainLayout({ children }: MainLayoutProps) {
                   <TrendingDown className="h-4 w-4" />
                 </>
               }
+            />
+
+            <NavItem
+              href="/transactions/all"
+              hoverClass="hover:bg-gray-50"
+              label="Ver Lançamentos"
+              icon={<List className="h-5 w-5" />}
             />
 
             {/* Análises */}

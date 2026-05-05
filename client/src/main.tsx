@@ -1,55 +1,24 @@
-import { trpc } from "@/lib/trpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink } from "@trpc/client";
 import { createRoot } from "react-dom/client";
-import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 import { registerSW } from "virtual:pwa-register";
-import { getIdToken } from "@/lib/firebase";
 
 if (typeof window !== "undefined") {
   registerSW({ immediate: true });
 }
 
-
-const queryClient = new QueryClient();
-
-queryClient.getQueryCache().subscribe(event => {
-  if (event.type === "updated" && event.action.type === "error") {
-    console.error("[API Query Error]", event.query.state.error);
-  }
-});
-
-queryClient.getMutationCache().subscribe(event => {
-  if (event.type === "updated" && event.action.type === "error") {
-    console.error("[API Mutation Error]", event.mutation.state.error);
-  }
-});
-
-const trpcClient = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: "/api/trpc",
-      transformer: superjson,
-      async headers() {
-        const token = await getIdToken();
-        return token ? { Authorization: `Bearer ${token}` } : {};
-      },
-      fetch(input, init) {
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-        });
-      },
-    }),
-  ],
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+    },
+  },
 });
 
 createRoot(document.getElementById("root")!).render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </trpc.Provider>
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
 );
