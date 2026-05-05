@@ -13,6 +13,7 @@ import {
   FileText,
   Tags,
   List,
+  Layers,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
@@ -176,12 +177,18 @@ export function MainLayout({ children }: MainLayoutProps) {
               icon={<FileText className="h-5 w-5" />}
             />
 
-            {/* ✅ NOVO: Categorias */}
             <NavItem
               href="/categories"
               hoverClass="hover:bg-indigo-50"
               label="Categorias"
               icon={<Tags className="h-5 w-5" />}
+            />
+
+            <NavItem
+              href="/wallets"
+              hoverClass="hover:bg-purple-50"
+              label="Carteiras"
+              icon={<Layers className="h-5 w-5" />}
             />
           </nav>
 

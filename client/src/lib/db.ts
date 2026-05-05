@@ -4,6 +4,7 @@ import {
   addDoc,
   getDocs,
   deleteDoc,
+  updateDoc,
   doc,
   query,
   where,
@@ -39,6 +40,7 @@ export interface Transaction {
   id: string;
   userId: string;
   categoryId: string;
+  walletId?: string;
   amount: number; // centavos
   description?: string;
   date: Date;
@@ -122,6 +124,7 @@ export async function deleteTransaction(transactionId: string): Promise<void> {
 
 export async function createTransaction(data: {
   categoryId: string;
+  walletId?: string;
   amount: number;
   description?: string;
   date: Date;
@@ -138,11 +141,13 @@ export async function createTransaction(data: {
     updatedAt: serverTimestamp(),
   };
   if (data.description !== undefined) doc_data.description = data.description;
+  if (data.walletId !== undefined) doc_data.walletId = data.walletId;
   const ref = await addDoc(collection(db, "transactions"), doc_data);
   return {
     id: ref.id,
     userId,
     categoryId: data.categoryId,
+    walletId: data.walletId,
     amount: Math.round(data.amount * 100),
     description: data.description,
     date: data.date,
@@ -227,6 +232,54 @@ const DEFAULT_EXPENSE: Array<{ name: string; color: string }> = [
   { name: "Outros", color: "#ef4444" },
 ];
 
+// ─── Wallets ──────────────────────────────────────────────────────────────────
+
+export interface Wallet {
+  id: string;
+  userId: string;
+  name: string;
+  type: "regular" | "benefit";
+  color: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const DEFAULT_WALLET_NAME = "Principal";
+
+export async function getUserWallets(): Promise<Wallet[]> {
+  const userId = uid();
+  const snap = await getDocs(
+    query(collection(db, "wallets"), where("userId", "==", userId))
+  );
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt), updatedAt: toDate(d.data().updatedAt) } as Wallet))
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+}
+
+export async function createWallet(data: { name: string; type: "regular" | "benefit"; color?: string }): Promise<Wallet> {
+  const userId = uid();
+  const ref = await addDoc(collection(db, "wallets"), {
+    userId,
+    name: data.name,
+    type: data.type,
+    color: data.color ?? (data.type === "benefit" ? "#8b5cf6" : "#3b82f6"),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return { id: ref.id, userId, name: data.name, type: data.type, color: data.color ?? "#3b82f6", createdAt: new Date(), updatedAt: new Date() };
+}
+
+export async function deleteWallet(walletId: string): Promise<void> {
+  await deleteDoc(doc(db, "wallets", walletId));
+}
+
+export async function getOrCreateDefaultWallet(): Promise<Wallet> {
+  const wallets = await getUserWallets();
+  const main = wallets.find((w) => w.type === "regular") ?? wallets[0];
+  if (main) return main;
+  return createWallet({ name: DEFAULT_WALLET_NAME, type: "regular", color: "#3b82f6" });
+}
+
 // ─── Goals ────────────────────────────────────────────────────────────────────
 
 export interface FinancialGoal {
@@ -281,7 +334,6 @@ export async function createGoal(data: {
 }
 
 export async function updateGoal(goalId: string, updates: { status?: "completed" | "failed" | "in_progress"; currentAmount?: number }): Promise<void> {
-  const { updateDoc } = await import("firebase/firestore");
   await updateDoc(doc(db, "financialGoals", goalId), { ...updates, updatedAt: serverTimestamp() });
 }
 
