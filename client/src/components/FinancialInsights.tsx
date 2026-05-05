@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getUserTransactions, getUserCategories, type Transaction, type Category } from "@/lib/db";
+import { getUserTransactions, getUserCategories, getUserWallets, type Transaction, type Category, type Wallet } from "@/lib/db";
 import { TrendingDown, TrendingUp, AlertTriangle, CheckCircle, Lightbulb, PiggyBank } from "lucide-react";
 
 interface Insight {
@@ -14,17 +14,23 @@ interface Insight {
 function buildInsights(
   transactions: Transaction[],
   categories: Category[],
+  wallets: Wallet[],
   year: number,
   month: number
 ): Insight[] {
-  const monthTx = transactions.filter((t) => {
+  const benefitIds = new Set(wallets.filter((w) => w.type === "benefit").map((w) => w.id));
+
+  // Exclui transações de carteiras de benefício da análise principal
+  const mainTx = transactions.filter((t) => !t.walletId || !benefitIds.has(t.walletId));
+
+  const monthTx = mainTx.filter((t) => {
     const d = new Date(t.date);
     return d.getFullYear() === year && d.getMonth() + 1 === month;
   });
 
   const prevMonth = month === 1 ? 12 : month - 1;
   const prevYear = month === 1 ? year - 1 : year;
-  const prevTx = transactions.filter((t) => {
+  const prevTx = mainTx.filter((t) => {
     const d = new Date(t.date);
     return d.getFullYear() === prevYear && d.getMonth() + 1 === prevMonth;
   });
@@ -212,9 +218,14 @@ export function FinancialInsights() {
     queryFn: getUserCategories,
   });
 
+  const { data: wallets = [] } = useQuery({
+    queryKey: ["wallets"],
+    queryFn: getUserWallets,
+  });
+
   const insights = useMemo(
-    () => buildInsights(transactions, categories, year, month),
-    [transactions, categories, year, month]
+    () => buildInsights(transactions, categories, wallets, year, month),
+    [transactions, categories, wallets, year, month]
   );
 
   if (insights.length === 0) return null;

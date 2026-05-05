@@ -11,6 +11,7 @@ import Alerts from "@/pages/Alerts";
 import Reports from "@/pages/Reports";
 import Categories from "@/pages/Categories";
 import Transactions from "@/pages/Transactions";
+import Wallets from "@/pages/Wallets";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -32,6 +33,7 @@ function ProtectedRouter() {
         <Route path="/categories" component={Categories} />
         <Route path="/transactions/:type" component={Transactions} />
         <Route path="/transactions" component={Transactions} />
+        <Route path="/wallets" component={Wallets} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

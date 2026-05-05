@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { Loader2, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUserCategories, createTransaction } from "@/lib/db";
+import { getUserCategories, getUserWallets, createTransaction } from "@/lib/db";
 
 export default function AddIncome() {
   const [, setLocation] = useLocation();
@@ -29,6 +29,7 @@ export default function AddIncome() {
 
   const [formData, setFormData] = useState({
     categoryId: "",
+    walletId: "",
     amount: "",
     description: "",
     date: new Date().toISOString().split("T")[0],
@@ -37,6 +38,11 @@ export default function AddIncome() {
   const { data: allCategories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ["categories"],
     queryFn: getUserCategories,
+  });
+
+  const { data: wallets = [] } = useQuery({
+    queryKey: ["wallets"],
+    queryFn: getUserWallets,
   });
 
   const incomeCategories = useMemo(
@@ -82,6 +88,7 @@ export default function AddIncome() {
     mutation.mutate({
       type: "income",
       categoryId: formData.categoryId,
+      walletId: formData.walletId && formData.walletId !== "__default__" ? formData.walletId : undefined,
       amount: amountNumber,
       description: formData.description || undefined,
       date: new Date(formData.date + "T12:00:00"),
@@ -136,6 +143,31 @@ export default function AddIncome() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="wallet">Carteira</Label>
+                <Select
+                  value={formData.walletId}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, walletId: value })
+                  }
+                >
+                  <SelectTrigger id="wallet">
+                    <SelectValue placeholder="Principal (padrão)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">Principal (padrão)</SelectItem>
+                    {wallets.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name}
+                        {w.type === "benefit" ? " · benefício" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="amount">Valor (R$) *</Label>
                 <Input
                   id="amount"
@@ -149,18 +181,18 @@ export default function AddIncome() {
                   }
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="date">Data *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) =>
-                  setFormData({ ...formData, date: e.target.value })
-                }
-              />
+              <div className="space-y-2">
+                <Label htmlFor="date">Data *</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) =>
+                    setFormData({ ...formData, date: e.target.value })
+                  }
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
