@@ -116,6 +116,10 @@ export async function getUserTransactions(limitCount = 100): Promise<Transaction
     .slice(0, limitCount);
 }
 
+export async function deleteTransaction(transactionId: string): Promise<void> {
+  await deleteDoc(doc(db, "transactions", transactionId));
+}
+
 export async function createTransaction(data: {
   categoryId: string;
   amount: number;

@@ -9,7 +9,8 @@ import Analytics from "@/pages/Analytics";
 import Goals from "@/pages/Goals";
 import Alerts from "@/pages/Alerts";
 import Reports from "@/pages/Reports";
-import Categories from "@/pages/Categories"; // ✅ NOVO
+import Categories from "@/pages/Categories";
+import Transactions from "@/pages/Transactions";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -28,7 +29,9 @@ function ProtectedRouter() {
         <Route path="/goals" component={Goals} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/reports" component={Reports} />
-        <Route path="/categories" component={Categories} /> {/* ✅ NOVO */}
+        <Route path="/categories" component={Categories} />
+        <Route path="/transactions/:type" component={Transactions} />
+        <Route path="/transactions" component={Transactions} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
