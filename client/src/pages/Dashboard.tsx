@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { useInitializeCategories } from "@/hooks/useInitializeCategories";
 import { getUserTransactions, calculateMonthlyBalance, getUserMonthlySummaries } from "@/lib/db";
 import { useLocation } from "wouter";
+import { FinancialInsights } from "@/components/FinancialInsights";
 
 export default function Dashboard() {
   useInitializeCategories();
@@ -134,6 +135,8 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      <FinancialInsights />
 
       <Card>
         <CardHeader>
